@@ -7,20 +7,30 @@ class JsonPrettyConverter {
 
   factory JsonPrettyConverter() =>
       _instance ??= JsonPrettyConverter._internal();
+
   JsonPrettyConverter._internal() {
     _encoder = const JsonEncoder.withIndent('  ');
   }
 
   static late final JsonEncoder _encoder;
 
-  String convert(text) {
-    late final String prettyprint;
+  dynamic convert(text) {
+    late final dynamic prettyprint;
+
     if (text is Map || text is String || text is List)
       prettyprint = _convertToPrettyJsonFromMapOrJson(text);
     else if (text is FormData)
       prettyprint = 'FormData:\n${_convertToPrettyFromFormData(text)}';
     else if (text == null)
       prettyprint = '';
+    else if (text is bool)
+      prettyprint = text;
+    else if (text is num)
+      prettyprint = text;
+    else if (text is double)
+      prettyprint = text;
+    else if (text is int)
+      prettyprint = text;
     else
       prettyprint = text.toString();
     return prettyprint;
@@ -29,7 +39,7 @@ class JsonPrettyConverter {
   String _convertToPrettyFromFormData(FormData text) {
     final map = {
       for (final e in text.fields) e.key: e.value,
-      for (final e in text.files) e.key: e.value.filename
+      for (final e in text.files) e.key: e.value.filename,
     };
 
     return _convertToPrettyJsonFromMapOrJson(map);
@@ -43,7 +53,7 @@ class JsonPrettyConverter {
         if (e.value is Map || e.value is List || e.value is String)
           e.key: e.value
         else
-          e.key: convert(e.value)
+          e.key: convert(e.value),
     };
     return _encoder.convert(text);
   }

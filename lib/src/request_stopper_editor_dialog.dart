@@ -51,8 +51,9 @@ class _RequestStopperEditorDialogState
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton(
-                    style:
-                        ElevatedButton.styleFrom(foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                    ),
                     child: const Text('Send'),
                     onPressed: () =>
                         Navigator.of(context).pop(_newRequestDetails),
@@ -88,15 +89,13 @@ class _RequestStopperEditorDialogState
                   underline: const SizedBox(),
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   onChanged: (value) => setState(() {
-                    _newRequestDetails =
-                        _newRequestDetails?.copyWith(requestMethod: value);
+                    _newRequestDetails = _newRequestDetails?.copyWith(
+                      requestMethod: value,
+                    );
                   }),
                   items: RequestMethod.values
                       .map(
-                        (e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(e.name),
-                        ),
+                        (e) => DropdownMenuItem(value: e, child: Text(e.name)),
                       )
                       .toList(),
                 ),
@@ -127,8 +126,9 @@ class _RequestStopperEditorDialogState
           const Text('Query Parameters: '),
           const SizedBox(height: 4.0),
           InspectorDialogTextField(
-            text: JsonPrettyConverter()
-                .convert(_newRequestDetails?.queryParameters),
+            text: JsonPrettyConverter().convert(
+              _newRequestDetails?.queryParameters,
+            ),
             onChanged: (value) =>
                 _newRequestDetails = _newRequestDetails?.copyWith(
               queryParameters: JsonPrettyConverter().deconvertFrom(
@@ -141,8 +141,9 @@ class _RequestStopperEditorDialogState
           const Text('Request Body: '),
           const SizedBox(height: 4.0),
           InspectorDialogTextField(
-            text:
-                JsonPrettyConverter().convert(_newRequestDetails?.requestBody),
+            text: JsonPrettyConverter().convert(
+              _newRequestDetails?.requestBody,
+            ),
             onChanged: (value) =>
                 _newRequestDetails = _newRequestDetails?.copyWith(
               requestBody: JsonPrettyConverter().deconvertFrom(

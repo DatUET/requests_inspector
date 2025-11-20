@@ -1,16 +1,20 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:shake/shake.dart';
+import 'package:requests_inspector/src/shake.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../requests_inspector.dart';
 import 'curl_command_generator.dart';
+import 'har_generator.dart';
 import 'json_pretty_converter.dart';
+import 'enums/share_type_enum.dart';
 
 typedef StoppingRequestCallback = Future<RequestDetails?> Function(
     RequestDetails requestDetails);
 
-typedef StoppingResponseCallback = Future Function(dynamic responseData);
+typedef StoppingResponseCallback = Future<ResponseDetails?> Function(
+    ResponseDetails responseDetails);
 
 ///Singleton
 class InspectorController extends ChangeNotifier {
@@ -19,12 +23,14 @@ class InspectorController extends ChangeNotifier {
     ShowInspectorOn showInspectorOn = ShowInspectorOn.Shaking,
     StoppingRequestCallback? onStoppingRequest,
     StoppingResponseCallback? onStoppingResponse,
+    bool defaultTreeViewEnabled = true,
   }) =>
       _singleton ??= InspectorController._internal(
         enabled: enabled,
         showInspectorOn: showInspectorOn,
         onStoppingRequest: onStoppingRequest,
         onStoppingResponse: onStoppingResponse,
+        defaultTreeViewEnabled: defaultTreeViewEnabled,
       );
 
   InspectorController._internal({
@@ -32,9 +38,11 @@ class InspectorController extends ChangeNotifier {
     required ShowInspectorOn showInspectorOn,
     StoppingRequestCallback? onStoppingRequest,
     StoppingResponseCallback? onStoppingResponse,
+    required bool defaultTreeViewEnabled,
   })  : _enabled = enabled,
         _showInspectorOn = showInspectorOn,
         _onStoppingRequest = onStoppingRequest,
+        _isTreeView = defaultTreeViewEnabled,
         _onStoppingResponse = onStoppingResponse {
     if (_enabled && _allowShaking)
       _shakeDetector = ShakeDetector.autoStart(
@@ -62,15 +70,26 @@ class InspectorController extends ChangeNotifier {
   int _selectedTab = 0;
   bool _requestStopperEnabled = false;
   bool _responseStopperEnabled = false;
+  bool _isDarkMode = true;
+  bool _isTreeView = true;
 
   final _requestsList = <RequestDetails>[];
   RequestDetails? _selectedRequest;
 
   int get selectedTab => _selectedTab;
+
   bool get requestStopperEnabled => _requestStopperEnabled;
+
   bool get responseStopperEnabled => _responseStopperEnabled;
+
+  bool get isDarkMode => _isDarkMode;
+
+  bool get isTreeView => _isTreeView;
+
   List<RequestDetails> get requestsList => _requestsList;
+
   RequestDetails? get selectedRequest => _selectedRequest;
+
   bool get _allowShaking => [
         ShowInspectorOn.Shaking,
         ShowInspectorOn.Both,
@@ -144,15 +163,58 @@ class InspectorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void shareSelectedRequest([Rect? sharePositionOrigin, bool isCurl = false]) {
+  void shareSelectedRequest({
+    Rect? sharePositionOrigin,
+    ShareType shareType = ShareType.NormalLog,
+  }) {
     String? requestShareContent;
-    if (isCurl) {
+    if (shareType == ShareType.CurlCommand) {
       final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
       requestShareContent = curlCommandGenerator.generate();
-    } else {
+    } else if (shareType == ShareType.NormalLog) {
       final requestMap = _selectedRequest!.toMap();
       requestShareContent = _formatMap(requestMap);
+    } else if (shareType == ShareType.Har) {
+      final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
+      final curlContent = curlCommandGenerator.generate();
+
+      final harGenerator = HarGenerator();
+      requestShareContent = harGenerator.generate(
+        request: _selectedRequest!,
+        curlCommand: curlContent,
+      );
+    } else if (shareType == ShareType.HarFile) {
+      final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
+      final curlContent = curlCommandGenerator.generate();
+
+      final harGenerator = HarGenerator();
+      final harJson = harGenerator.generate(
+        request: _selectedRequest!,
+        curlCommand: curlContent,
+      );
+
+      final file = XFile.fromData(
+        utf8.encode(harJson),
+        name: 'request.har',
+        mimeType: 'application/json',
+      );
+
+      Share.shareXFiles(
+        [file],
+        sharePositionOrigin: sharePositionOrigin,
+      );
+      return;
+    } else {
+      final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
+      final curlContent = curlCommandGenerator.generate();
+
+      final requestMap = _selectedRequest!.toMap();
+      final normalLogContent = _formatMap(requestMap);
+
+      requestShareContent =
+          '================[cURL Command]=================\n$curlContent\n\n==================[Normal Log]===================\n$normalLogContent';
     }
+
     Share.share(
       requestShareContent,
       sharePositionOrigin: sharePositionOrigin,
@@ -162,6 +224,7 @@ class InspectorController extends ChangeNotifier {
   @override
   void dispose() {
     if (_allowShaking) _shakeDetector.stopListening();
+    _singleton = null;
     super.dispose();
   }
 
@@ -183,14 +246,25 @@ class InspectorController extends ChangeNotifier {
     return _onStoppingRequest!(requestDetails);
   }
 
-  Future editResponse(responseData) {
+  Future<ResponseDetails?> editResponse(ResponseDetails responseDetails) {
     if (!_enabled || _onStoppingResponse == null) return Future.value(null);
 
-    if (!['Map', 'String', 'List'].any((e) => responseData.runtimeType
+    if (!['Map', 'String', 'List'].any((e) => responseDetails
+        .responseBody.runtimeType
         .toString()
         .replaceFirst('_', '')
         .startsWith(e))) return Future.value(null);
 
-    return _onStoppingResponse!(responseData);
+    return _onStoppingResponse!(responseDetails);
+  }
+
+  void toggleInspectorTheme() {
+    _isDarkMode = !_isDarkMode;
+    notifyListeners();
+  }
+
+  void toggleInspectorJsonView() {
+    _isTreeView = !_isTreeView;
+    notifyListeners();
   }
 }

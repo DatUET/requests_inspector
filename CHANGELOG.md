@@ -1,3 +1,85 @@
+## 5.2.1
+
+- Enhance json pretty converter `convert` method to handle additional data types including bool, num, and null.
+- Update README.md file with the new HAR file support.
+
+## 5.2.0
+
+- Add support for sharing HAR files.
+
+## 5.1.1
+
+- Add `defaultTreeViewEnabled` parameter to `RequestsInspector` widget to control the initial state of the JSON tree view.
+
+```dart
+RequestsInspector(
+  defaultTreeViewEnabled: false,
+  child: MyApp(),
+);
+```
+
+## 5.1.0
+
+- **FormData Inspection Support**: Now you can inspect FormData requests with proper formatting and display, thanks to [Mostafa Alazhariy](https://github.com/MAlazhariy).
+- **Cloudflare Protection Fix**: Bypass Cloudflare protection errors in example app by adding browser-like headers, thanks to [mostafaelzahry](https://github.com/mostafaelzahry).
+- **Fix Context Menu Issue**: Added custom `contextMenuBuilder` to all `SelectableText` widgets to prevent context menu conflicts and improve text selection behavior, thanks to [Nourhan Sabrii](https://github.com/NourSabry).
+- **Upgrade Dependencies**: Upgraded `gql` package to latest stable version `1.0.0`.
+- **Code Quality Improvements**: Major code refactoring with clean up formatting and improved readability across multiple files.
+
+## 5.0.3
+
+- Add status code and headers input fields in `Responses Stopper` Dialog.
+
+## 5.0.2
+
+- Set `initiallyExpanded` to `true` by default.
+
+## 5.0.1
+
+- Update dependencies, thanks to [ahmedsabahi](https://github.com/ahmedsabahi).
+
+## 5.0.0
+
+- 🌗 **Dark/Light Mode Toggle**: Automatically adapts to system theme or user preference with manual toggle option.
+- 📋 **Click to Copy Content**: Makes it easier to copy values such as headers, URLs, and JSON content with a single tap.
+- 📂 **Expandable/Collapsible Sections**: Improves navigation by letting users toggle visibility of large sections like headers, request/response bodies, etc.
+- 🌳 **JSON Tree View**: Added JSON-Tree display option with a structured, interactive tree view — expandable and more readable.
+- 🎨 **UI/UX Refinements**: Added spacing, border radius, section highlights, and consistent padding for better layout and readability in both light and dark modes.
+- Major code refactoring with better separation of concerns and improved widget structure.
+- Enhanced user experience with modern, clean interface design.
+
+Special thanks to [BelalNayzak](https://github.com/BelalNayzak) for this amazing contribution that makes the inspector much more powerful and user-friendly! 🎉
+
+## 4.2.3
+
+- Add `ShareType` enum to choose the type of the share content and `Both` option to share both `cURL` and `Normal Log`.
+
+## 4.2.2
+
+- When there is data from error, show error first [#44](https://github.com/Abdelazeem777/requests_inspector/pull/44), thanks to [AnthonyXcode](https://github.com/AnthonyXcode)
+
+## 4.2.1
+
+- Fix `connectivity_plus` version dependency issue with `graphql` thanks to [MohamedGawdat](https://github.com/MohamedGawdat)
+
+## 4.2.0
+
+- Support Flutter v3.27.0 thanks to [MAlazhariy](https://github.com/MAlazhariy)
+
+## 4.1.2
+
+- Dispose singleton when dispose notifier thanks to [AnthonyXcode](https://github.com/AnthonyXcode).
+
+## 4.1.1
+
+- Downgrade `connectivity_plus` to the most suitable version.
+
+## 4.1.0
+
+- Start depending on `sensor_plus` instead of using `shake` package to handle the shaking event.
+- Start using flutter v3.19.6.
+- Increase the version to `4.1.0` because the `4.0.4` version is a sign of trouble 😅.
+
 ## 4.0.4
 
 - Add a stunning and captivating new logo, thanks to the incredibly talented [Yumna Hossam](https://www.behance.net/yumnahossam). 🎉️🎉️
