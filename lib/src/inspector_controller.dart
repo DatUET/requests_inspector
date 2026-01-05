@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:requests_inspector/src/shake.dart';
+import 'package:requests_inspector/src/stopper_filter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../requests_inspector.dart';
@@ -9,6 +10,7 @@ import 'curl_command_generator.dart';
 import 'har_generator.dart';
 import 'json_pretty_converter.dart';
 import 'enums/share_type_enum.dart';
+import 'requests_filter.dart';
 
 typedef StoppingRequestCallback = Future<RequestDetails?> Function(
     RequestDetails requestDetails);
@@ -24,6 +26,8 @@ class InspectorController extends ChangeNotifier {
     StoppingRequestCallback? onStoppingRequest,
     StoppingResponseCallback? onStoppingResponse,
     bool defaultTreeViewEnabled = true,
+    bool defaultExpandChildren = true,
+    bool defaultIsDarkMode = true,
   }) =>
       _singleton ??= InspectorController._internal(
         enabled: enabled,
@@ -31,6 +35,8 @@ class InspectorController extends ChangeNotifier {
         onStoppingRequest: onStoppingRequest,
         onStoppingResponse: onStoppingResponse,
         defaultTreeViewEnabled: defaultTreeViewEnabled,
+        defaultExpandChildren: defaultExpandChildren,
+        defaultIsDarkMode: defaultIsDarkMode,
       );
 
   InspectorController._internal({
@@ -39,10 +45,14 @@ class InspectorController extends ChangeNotifier {
     StoppingRequestCallback? onStoppingRequest,
     StoppingResponseCallback? onStoppingResponse,
     required bool defaultTreeViewEnabled,
+    required bool defaultExpandChildren,
+    required bool defaultIsDarkMode,
   })  : _enabled = enabled,
         _showInspectorOn = showInspectorOn,
         _onStoppingRequest = onStoppingRequest,
         _isTreeView = defaultTreeViewEnabled,
+        _expandChildren = defaultExpandChildren,
+        _isDarkMode = defaultIsDarkMode,
         _onStoppingResponse = onStoppingResponse {
     if (_enabled && _allowShaking)
       _shakeDetector = ShakeDetector.autoStart(
@@ -70,11 +80,42 @@ class InspectorController extends ChangeNotifier {
   int _selectedTab = 0;
   bool _requestStopperEnabled = false;
   bool _responseStopperEnabled = false;
-  bool _isDarkMode = true;
-  bool _isTreeView = true;
+  bool _isDarkMode;
+  bool _isTreeView;
+  bool _expandChildren;
 
   final _requestsList = <RequestDetails>[];
   RequestDetails? _selectedRequest;
+
+  // Search & Filters state
+  String _searchUrlQuery = '';
+  RequestMethod? _filterRequestMethod;
+  int? _filterStatusCode;
+
+  // ------------------------------
+
+  // Stoppers Filter State
+  /// TODO: Would be better if we used the [RequestStopperFilter] and [ResponseStopperFilter] classes instead of these separate fields.
+  RequestMethod? _requestStopperFilterMethod;
+  String? _requestStopperFilterUrl;
+  int? _responseStopperFilterStatusCode;
+  String? _responseStopperFilterUrl;
+  // ------------------------------
+
+  RequestMethod? get requestStopperFilterMethod => _requestStopperFilterMethod;
+  String? get requestStopperFilterUrl => _requestStopperFilterUrl;
+  int? get responseStopperFilterStatusCode => _responseStopperFilterStatusCode;
+  String? get responseStopperFilterUrl => _responseStopperFilterUrl;
+
+  bool get hasRequestStopperFilters =>
+      _requestStopperFilterMethod != null ||
+      (_requestStopperFilterUrl != null &&
+          _requestStopperFilterUrl!.trim().isNotEmpty);
+
+  bool get hasResponseStopperFilters =>
+      _responseStopperFilterStatusCode != null ||
+      (_responseStopperFilterUrl != null &&
+          _responseStopperFilterUrl!.trim().isNotEmpty);
 
   int get selectedTab => _selectedTab;
 
@@ -86,9 +127,40 @@ class InspectorController extends ChangeNotifier {
 
   bool get isTreeView => _isTreeView;
 
+  bool get expandChildren => _expandChildren;
+
   List<RequestDetails> get requestsList => _requestsList;
 
   RequestDetails? get selectedRequest => _selectedRequest;
+
+  String get searchUrlQuery => _searchUrlQuery;
+
+  RequestMethod? get filterRequestMethod => _filterRequestMethod;
+
+  int? get filterStatusCode => _filterStatusCode;
+
+  bool get areAnyFiltersApplied =>
+      searchUrlQuery.trim().isNotEmpty ||
+      filterRequestMethod != null ||
+      filterStatusCode != null;
+
+  // Computed filtered + searched list
+  List<RequestDetails> get filteredRequestsList {
+    Iterable<RequestDetails> list = [..._requestsList];
+
+    if (_filterRequestMethod != null)
+      list =
+          list.where(RequestMethodFilter(_filterRequestMethod!).requestFilter);
+
+    if (_filterStatusCode != null)
+      list =
+          list.where(RequestStatusCodeFilter(_filterStatusCode!).requestFilter);
+
+    if (_searchUrlQuery.trim().isNotEmpty)
+      list = list.where(RequestUrlFilter(_searchUrlQuery).requestFilter);
+
+    return list.toList(growable: false);
+  }
 
   bool get _allowShaking => [
         ShowInspectorOn.Shaking,
@@ -118,6 +190,97 @@ class InspectorController extends ChangeNotifier {
     _selectedRequest = value;
     _selectedTab = 1;
     notifyListeners();
+  }
+
+  // setters for search & filters
+  void searchForRequests(String value) {
+    if (_searchUrlQuery == value) return;
+    _searchUrlQuery = value;
+    notifyListeners();
+  }
+
+  void setRequestMethodFilter(RequestMethod? method) {
+    if (_filterRequestMethod == method) return;
+    _filterRequestMethod = method;
+    notifyListeners();
+  }
+
+  void setStatusCodeFilter(int? statusCode) {
+    if (_filterStatusCode == statusCode) return;
+    _filterStatusCode = statusCode;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _filterRequestMethod = null;
+    _filterStatusCode = null;
+    notifyListeners();
+  }
+
+  void clearSearch() {
+    if (_searchUrlQuery.isEmpty) return;
+    _searchUrlQuery = '';
+    notifyListeners();
+  }
+
+  void setRequestStopperFilterMethod(RequestMethod? method) {
+    if (_requestStopperFilterMethod == method) return;
+    _requestStopperFilterMethod = method;
+    notifyListeners();
+  }
+
+  void setRequestStopperFilterUrl(String? url) {
+    url = url?.trim();
+    if (url != null && url.isEmpty) {
+      url = null;
+    }
+    if (_requestStopperFilterUrl == url) return;
+    _requestStopperFilterUrl = url;
+    notifyListeners();
+  }
+
+  void setResponseStopperFilterStatusCode(int? statusCode) {
+    if (_responseStopperFilterStatusCode == statusCode) return;
+    _responseStopperFilterStatusCode = statusCode;
+    notifyListeners();
+  }
+
+  void setResponseStopperFilterUrl(String? url) {
+    url = url?.trim();
+    if (url != null && url.isEmpty) {
+      url = null;
+    }
+    if (_responseStopperFilterUrl == url) return;
+    _responseStopperFilterUrl = url;
+    notifyListeners();
+  }
+
+  void clearRequestStopperFilters() {
+    _requestStopperFilterMethod = null;
+    _requestStopperFilterUrl = null;
+    notifyListeners();
+  }
+
+  void clearResponseStopperFilters() {
+    _responseStopperFilterStatusCode = null;
+    _responseStopperFilterUrl = null;
+    notifyListeners();
+  }
+
+  bool shouldStopRequest(RequestDetails requestDetails) {
+    final filter = RequestStopperFilter(
+      requestMethod: _requestStopperFilterMethod,
+      urlPattern: _requestStopperFilterUrl,
+    );
+    return filter.shouldStop(requestDetails);
+  }
+
+  bool shouldStopResponse(ResponseDetails responseDetails) {
+    final filter = ResponseStopperFilter(
+      statusCode: _responseStopperFilterStatusCode,
+      urlPattern: _responseStopperFilterUrl,
+    );
+    return filter.shouldStop(responseDetails);
   }
 
   void showInspector() => pageController.jumpToPage(1);
@@ -265,6 +428,11 @@ class InspectorController extends ChangeNotifier {
 
   void toggleInspectorJsonView() {
     _isTreeView = !_isTreeView;
+    notifyListeners();
+  }
+
+  void toggleExpandChildren() {
+    _expandChildren = !_expandChildren;
     notifyListeners();
   }
 }
